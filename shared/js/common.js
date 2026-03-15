@@ -5,6 +5,29 @@
  */
 
 /* ============================================
+   MEDIA PATH RESOLVER
+   Detects local (media/) vs GitHub Pages (media_web/)
+   ============================================ */
+
+let MEDIA_PREFIX = '../media/';
+
+async function detectMediaPath() {
+  // Try to load a test file from media/ (local symlinks)
+  try {
+    const resp = await fetch('../media/petergram/posts/202602/18394659205145365.jpg', { method: 'HEAD' });
+    if (resp.ok) { MEDIA_PREFIX = '../media/'; return; }
+  } catch(e) {}
+  // Fallback to media_web/ (GitHub Pages)
+  MEDIA_PREFIX = '../media_web/';
+}
+
+function resolveMediaPath(path) {
+  if (!path) return path;
+  // Replace ../media/ with detected prefix
+  return path.replace(/\.\.\/media\//, MEDIA_PREFIX);
+}
+
+/* ============================================
    TAB SWITCHING
    ============================================ */
 
@@ -452,7 +475,8 @@ function isVideo(path) {
 }
 
 function mediaTag(path) {
-  const src = escapeHtml(path);
+  const resolved = resolveMediaPath(path);
+  const src = escapeHtml(resolved);
   if (isVideo(path)) {
     return `<video src="${src}" controls preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video>`;
   }

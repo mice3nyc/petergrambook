@@ -572,6 +572,7 @@
       document.getElementById('year-select').addEventListener('change',e=>{currentYear=e.target.value;currentPage=1;loadTimeline();});
       document.getElementById('search-btn').addEventListener('click',doSearch);
       document.getElementById('search-input').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
+      await detectMediaPath();
       const ok=await initDB();
       document.getElementById('photo-cat-select').addEventListener('change',e=>{photoCat=e.target.value;photoPage=1;loadPhotos();});
       document.getElementById('msg-back-btn').addEventListener('click', hideThread);

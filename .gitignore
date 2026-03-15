@@ -3,24 +3,26 @@ shared/data/petergram.db
 shared/data/peterbook.db
 shared/data/build_databases.py
 
-# Media symlinks (local only, point to backup files)
+# Local media symlinks (GitHub uses media_web/ instead)
 media/
+
+# macOS app bundle (local only)
+Petergrambook.app/
 
 # macOS
 .DS_Store
 Icon?
 
-# Analysis raw data (contains personal info)
+# Internal work documents
+_코스모로그.md
 analysis/facebook_data.json
 analysis/instagram_data.json
 analysis/parse_facebook.py
-
-# Temp files
-*.pyc
-__pycache__/
-
-# Internal work documents (not part of the viewer)
-_코스모로그.md
-analysis/
+analysis/facebook_분석보고서.md
+analysis/instagram_분석보고서.md
 create_public_dbs.py
 start.sh
+
+# Temp
+*.pyc
+__pycache__/

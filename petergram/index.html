@@ -697,6 +697,8 @@
       document.getElementById('search-btn').addEventListener('click', doSearch);
       document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 
+      // Detect media path (local vs GitHub Pages)
+      await detectMediaPath();
       // Load DB
       const ok = await initDB();
       if (ok) {
