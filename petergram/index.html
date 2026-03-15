@@ -232,15 +232,22 @@
     async function initDB() {
       try {
         const SQL = await initSqlJs({ locateFile: f => `../shared/js/${f}` });
-        const resp = await fetch('../shared/data/petergram.db');
+        let resp, dbName;
+        try {
+          resp = await fetch('../shared/data/petergram.db');
+          if (!resp.ok) throw new Error('not found');
+          dbName = 'petergram.db (full)';
+        } catch(e) {
+          resp = await fetch('../shared/data/petergram_public.db');
+          dbName = 'petergram_public.db';
+        }
         const buf = await resp.arrayBuffer();
         db = new SQL.Database(new Uint8Array(buf));
-        document.getElementById('db-status').textContent = 'petergram.db ✓';
+        document.getElementById('db-status').textContent = dbName + ' ✓';
         return true;
       } catch(e) {
         console.error('DB load failed:', e);
-        document.getElementById('db-status').textContent = 'DB error — run start.sh';
-        document.getElementById('timeline-status').textContent = 'DB 로드 실패. start.sh로 실행해주세요.';
+        document.getElementById('db-status').textContent = 'DB error';
         return false;
       }
     }
