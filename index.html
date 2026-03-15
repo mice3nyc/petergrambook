@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local Archive — Petergram & Peterbook</title>
+  <link rel="stylesheet" href="shared/css/mac-classic.css">
+  <style>
+    /* Lock screen styles */
+    #lock-screen {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 99999;
+      background-color: var(--mac-bg);
+      background-image:
+        linear-gradient(45deg, #d0d0d0 25%, transparent 25%),
+        linear-gradient(-45deg, #d0d0d0 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #d0d0d0 75%),
+        linear-gradient(-45deg, transparent 75%, #d0d0d0 75%);
+      background-size: 4px 4px;
+      background-position: 0 0, 0 2px, 2px -2px, -2px 0px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-10px); }
+      40% { transform: translateX(10px); }
+      60% { transform: translateX(-6px); }
+      80% { transform: translateX(6px); }
+    }
+
+    /* Splash-specific styles */
+    .splash-desktop {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .splash-hero {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .splash-title {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+
+    .splash-subtitle {
+      font-size: 16px;
+      color: var(--mac-dark-gray);
+      margin-bottom: 32px;
+      text-align: center;
+    }
+
+    /* Large pixel art icons for splash */
+    .splash-camera {
+      width: 48px;
+      height: 40px;
+      border: 3px solid var(--mac-black);
+      border-radius: 3px;
+      position: relative;
+      margin: 0 auto 12px;
+    }
+
+    .splash-camera::before {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 6px;
+      border: 3px solid var(--mac-black);
+      top: -9px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--mac-white);
+    }
+
+    .splash-camera::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border: 3px solid var(--mac-black);
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .splash-book {
+      width: 40px;
+      height: 48px;
+      border: 3px solid var(--mac-black);
+      border-left: 6px solid var(--mac-black);
+      position: relative;
+      margin: 0 auto 12px;
+      background: var(--mac-white);
+    }
+
+    .splash-book::before {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 3px;
+      background: var(--mac-black);
+      top: 12px;
+      left: 4px;
+    }
+
+    .splash-book::after {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 3px;
+      background: var(--mac-black);
+      top: 20px;
+      left: 4px;
+    }
+
+    /* Hover effect for splash windows */
+    a.splash-window-link {
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+
+    a.splash-window-link:hover .mac-window {
+      box-shadow: 3px 3px 0 var(--mac-black);
+    }
+
+    a.splash-window-link:active .mac-window {
+      box-shadow: none;
+      transform: translate(2px, 2px);
+    }
+
+    /* Welcome text */
+    .welcome-box {
+      border: var(--mac-border);
+      padding: 12px 20px;
+      margin-bottom: 28px;
+      background: var(--mac-white);
+      text-align: center;
+      max-width: 420px;
+      box-shadow: 1px 1px 0 var(--mac-black);
+    }
+
+    .welcome-box p {
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    /* Decorative floppy disk icon */
+    .floppy-icon {
+      width: 32px;
+      height: 36px;
+      border: 2px solid var(--mac-black);
+      background: var(--mac-white);
+      position: relative;
+      margin: 0 auto 8px;
+      border-radius: 2px;
+    }
+
+    .floppy-icon::before {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 8px;
+      border: 2px solid var(--mac-black);
+      background: var(--mac-white);
+      top: -1px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .floppy-icon::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 12px;
+      border: 2px solid var(--mac-black);
+      background: var(--mac-white);
+      bottom: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== LOCK SCREEN ===== -->
+  <div id="lock-screen">
+    <div class="mac-dialog" style="width:360px;">
+      <div class="mac-window-titlebar">
+        <span class="mac-window-title">Petergram & Peterbook</span>
+      </div>
+      <div style="padding:24px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:16px;">&#x1F512;</div>
+        <p style="font-size:16px;margin-bottom:16px;">Enter PIN to access archive</p>
+        <input type="password" id="pin-input" maxlength="4" pattern="[0-9]*" inputmode="numeric"
+               style="font-size:24px;text-align:center;width:120px;letter-spacing:8px;" class="mac-input">
+        <div id="pin-error" style="color:red;font-size:13px;margin-top:8px;visibility:hidden;">Access Denied</div>
+        <button class="mac-button primary" id="pin-submit" style="margin-top:16px;">Enter</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="main-content" style="display:none;">
+
+  <!-- ===== MENU BAR ===== -->
+  <nav class="mac-menubar" role="menubar">
+    <span class="menu-item menu-apple" role="menuitem">&#63743;</span>
+    <span class="menu-item" role="menuitem"><strong>Local Archive</strong></span>
+    <span class="menu-item" role="menuitem">File</span>
+    <span class="menu-item" role="menuitem">Edit</span>
+    <span class="menu-item" role="menuitem">View</span>
+    <span class="menu-item" role="menuitem">Special</span>
+    <span class="menu-spacer"></span>
+    <span class="menu-clock"></span>
+  </nav>
+
+  <!-- ===== DESKTOP ===== -->
+  <div class="splash-desktop mac-desktop">
+    <div class="splash-hero">
+
+      <!-- Title -->
+      <div class="floppy-icon"></div>
+      <h1 class="splash-title">Local SNS Archive</h1>
+      <p class="splash-subtitle">Petergram & Peterbook — Offline Viewer</p>
+
+      <!-- Welcome message -->
+      <div class="welcome-box">
+        <p>소셜 미디어 아카이브 뷰어에 오신 것을 환영합니다.<br>
+        아래에서 열람할 아카이브를 선택하세요.</p>
+      </div>
+
+      <!-- Two clickable windows -->
+      <div class="splash-container">
+
+        <!-- Petergram window -->
+        <a href="petergram/index.html" class="splash-window-link">
+          <div class="mac-window splash-window">
+            <div class="mac-window-titlebar">
+              <div class="mac-window-close" onclick="event.preventDefault();"></div>
+              <span class="mac-window-title">Petergram</span>
+            </div>
+            <div class="splash-window-body">
+              <div class="splash-camera"></div>
+              <div class="splash-label">Petergram</div>
+              <div class="splash-sublabel">Instagram Archive<br>@peter_nolgong</div>
+            </div>
+          </div>
+        </a>
+
+        <!-- Peterbook window -->
+        <a href="peterbook/index.html" class="splash-window-link">
+          <div class="mac-window splash-window">
+            <div class="mac-window-titlebar">
+              <div class="mac-window-close" onclick="event.preventDefault();"></div>
+              <span class="mac-window-title">Peterbook</span>
+            </div>
+            <div class="splash-window-body">
+              <div class="splash-book"></div>
+              <div class="splash-label">Peterbook</div>
+              <div class="splash-sublabel">Facebook Archive<br>mice3nyc</div>
+            </div>
+          </div>
+        </a>
+
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mac-footer">
+      Local Archive — Last sync: 2026-03-02
+    </footer>
+  </div>
+
+  </div><!-- end main-content -->
+
+  <script src="shared/js/common.js"></script>
+  <script>
+    const PIN = '0220';
+    function checkPin() {
+      const input = document.getElementById('pin-input').value;
+      if (input === PIN) {
+        document.getElementById('lock-screen').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+        sessionStorage.setItem('unlocked', 'true');
+      } else {
+        const err = document.getElementById('pin-error');
+        err.style.visibility = 'visible';
+        document.getElementById('pin-input').value = '';
+        const dialog = document.querySelector('#lock-screen .mac-dialog');
+        dialog.style.animation = 'shake 0.3s';
+        setTimeout(() => { dialog.style.animation = ''; err.style.visibility = 'hidden'; }, 1500);
+      }
+    }
+    document.getElementById('pin-submit').addEventListener('click', checkPin);
+    document.getElementById('pin-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkPin(); });
+    // Auto-unlock if already authenticated in this session
+    if (sessionStorage.getItem('unlocked') === 'true') {
+      document.getElementById('lock-screen').style.display = 'none';
+      document.getElementById('main-content').style.display = 'block';
+    }
+    // Auto-focus PIN input
+    document.getElementById('pin-input').focus();
+  </script>
+</body>
+</html>

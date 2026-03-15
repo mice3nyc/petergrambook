@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Peterbook — mice3nyc</title>
+  <link rel="stylesheet" href="../shared/css/mac-classic.css">
+  <style>
+    /* Lock screen styles */
+    #lock-screen {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 99999;
+      background-color: var(--mac-bg);
+      background-image:
+        linear-gradient(45deg, #d0d0d0 25%, transparent 25%),
+        linear-gradient(-45deg, #d0d0d0 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #d0d0d0 75%),
+        linear-gradient(-45deg, transparent 75%, #d0d0d0 75%);
+      background-size: 4px 4px;
+      background-position: 0 0, 0 2px, 2px -2px, -2px 0px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-10px); }
+      40% { transform: translateX(10px); }
+      60% { transform: translateX(-6px); }
+      80% { transform: translateX(6px); }
+    }
+    .peterbook-app { padding-top: 30px; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+    .peterbook-window { width: 98%; max-width: 1100px; margin: 12px auto; }
+    .profile-header { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-bottom: 1px solid var(--mac-black); }
+    .profile-avatar { width: 48px; height: 48px; border: 2px solid var(--mac-black); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+    .profile-info { flex: 1; }
+    .profile-name { font-weight: bold; font-size: 16px; }
+    .profile-stats { font-size: 13px; margin-top: 4px; display: flex; gap: 16px; }
+    .profile-bio { font-size: 13px; color: var(--mac-dark-gray); margin-top: 2px; }
+    .back-link { display: inline-block; padding: 4px 10px; font-size: 13px; text-decoration: none; color: var(--mac-black); border: 1px solid var(--mac-black); background: var(--mac-white); margin: 8px; }
+    .back-link:hover { background: var(--mac-black); color: var(--mac-white); }
+    .filter-bar { padding: 6px 8px; border-bottom: 1px solid var(--mac-black); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .filter-bar label { font-size: 13px; font-weight: bold; }
+    .tab-content-area { min-height: 500px; }
+    .fb-post { border: var(--mac-border); margin: 10px 12px; background: var(--mac-white); }
+    .fb-post-header { padding: 8px 12px; border-bottom: 1px solid var(--mac-black); font-size: 13px; display: flex; justify-content: space-between; }
+    .fb-post-body { padding: 12px; }
+    .fb-post-text { font-size: 14px; line-height: 1.6; max-height: calc(1.5em * 15); overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
+    .fb-post-content { display: flex; gap: 12px; }
+    .fb-post-image-side { width: 300px; max-width: 300px; min-height: 200px; flex-shrink: 0; border-right: 1px solid var(--mac-black); overflow: hidden; background: #e0e0e0; }
+    .fb-post-image-side img { width: 100%; height: 100%; object-fit: cover; }
+    .fb-post-image-side .mac-card-carousel { width: 100%; height: 100%; }
+    .fb-post-image-side .carousel-track { height: 100%; }
+    .fb-post-image-side .carousel-slide { height: 100%; }
+    .fb-post-image-side .carousel-slide img { width: 100%; height: 100%; object-fit: cover; }
+    .fb-post-text-side { flex: 1; padding: 8px; font-size: 14px; line-height: 1.6; max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
+    .fb-post-footer { padding: 6px 12px; border-top: 1px solid var(--mac-light-gray); font-size: 12px; color: var(--mac-dark-gray); }
+    .stat-card { flex: 1; min-width: 150px; }
+    .stat-card .mac-card-body { text-align: center; padding: 16px; }
+    .stat-value { font-size: 28px; font-weight: bold; }
+    .stat-sub { font-size: 12px; color: var(--mac-dark-gray); margin-top: 4px; }
+    .bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 150px; padding: 8px; border: 1px solid var(--mac-black); margin: 12px 0; }
+    .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+    .bar-fill { width: 100%; background: var(--mac-black); min-height: 1px; }
+    .bar-label { font-size: 10px; margin-top: 4px; }
+    .bar-value { font-size: 9px; margin-bottom: 2px; }
+    .thread-list-item { padding: 8px 12px; border-bottom: 1px solid var(--mac-light-gray); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+    .thread-list-item:hover { background: var(--mac-black); color: var(--mac-white); }
+    .thread-name { font-weight: bold; font-size: 14px; }
+    .thread-meta { font-size: 12px; color: var(--mac-dark-gray); }
+    .thread-list-item:hover .thread-meta { color: var(--mac-light-gray); }
+    .thread-count { font-size: 13px; font-weight: bold; white-space: nowrap; }
+    .interest-tag { display: inline-block; border: 1px solid var(--mac-black); padding: 2px 8px; margin: 3px; font-size: 12px; }
+    .offmeta-item { padding: 4px 8px; font-size: 13px; border-bottom: 1px solid var(--mac-light-gray); }
+    .msg-bubble { padding: 8px 12px; margin: 6px 0; border: 1px solid var(--mac-black); max-width: 80%; font-size: 13px; line-height: 1.5; }
+    .msg-bubble.sent { margin-left: auto; background: var(--mac-black); color: var(--mac-white); }
+    .msg-bubble.received { margin-right: auto; background: var(--mac-white); }
+    .msg-sender { font-size: 11px; font-weight: bold; margin-bottom: 2px; }
+    .msg-time { font-size: 10px; color: var(--mac-dark-gray); margin-top: 2px; }
+    .msg-bubble.sent .msg-time { color: var(--mac-light-gray); }
+    .photo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 8px; }
+    .photo-grid-item { aspect-ratio: 1; border: 1px solid var(--mac-black); overflow: hidden; cursor: pointer; }
+    .photo-grid-item img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-grid-item:hover { opacity: 0.8; }
+    .fb-post-image { margin-top: 8px; border: 1px solid var(--mac-black); max-width: 100%; overflow: hidden; }
+    .fb-post-image img { width: 100%; max-height: 500px; object-fit: contain; display: block; background: #e0e0e0; }
+    .h-bar-row { display: flex; align-items: center; margin: 3px 0; font-size: 12px; }
+    .h-bar-rank { width: 24px; text-align: right; margin-right: 6px; font-size: 11px; color: var(--mac-dark-gray); }
+    .h-bar-label { width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .h-bar-track { flex: 1; height: 14px; background: #f0f0f0; border: 1px solid var(--mac-black); margin: 0 6px; }
+    .h-bar-fill { height: 100%; background: var(--mac-black); }
+    .h-bar-value { width: 50px; font-size: 11px; text-align: right; }
+    .dow-chart { display: flex; align-items: flex-end; gap: 6px; height: 120px; padding: 8px; border: 1px solid var(--mac-black); margin: 12px 0; }
+    .dow-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+    .analysis-section { margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <!-- LOCK SCREEN -->
+  <div id="lock-screen">
+    <div class="mac-dialog" style="width:360px;">
+      <div class="mac-window-titlebar">
+        <span class="mac-window-title">Peterbook</span>
+      </div>
+      <div style="padding:24px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:16px;">&#x1F512;</div>
+        <p style="font-size:16px;margin-bottom:16px;">Enter PIN to access archive</p>
+        <input type="password" id="pin-input" maxlength="4" pattern="[0-9]*" inputmode="numeric"
+               style="font-size:24px;text-align:center;width:120px;letter-spacing:8px;" class="mac-input">
+        <div id="pin-error" style="color:red;font-size:13px;margin-top:8px;visibility:hidden;">Access Denied</div>
+        <button class="mac-button primary" id="pin-submit" style="margin-top:16px;">Enter</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="main-content" style="display:none;">
+  <nav class="mac-menubar">
+    <span class="menu-item menu-apple">&#63743;</span>
+    <span class="menu-item"><strong>Peterbook</strong></span>
+    <span class="menu-item">File</span>
+    <span class="menu-item">View</span>
+    <span class="menu-spacer"></span>
+    <span class="menu-clock"></span>
+  </nav>
+
+  <main class="peterbook-app mac-desktop">
+    <a href="../index.html" class="back-link">&larr; Back to Archive</a>
+    <div class="mac-window peterbook-window fullscreen">
+      <div class="mac-window-titlebar">
+        <div class="mac-window-close"></div>
+        <span class="mac-window-title">Peterbook — mice3nyc</span>
+      </div>
+      <div class="profile-header">
+        <div class="profile-avatar">P</div>
+        <div class="profile-info">
+          <div class="profile-name">mice3nyc (Peter Lee)</div>
+          <div class="profile-stats">
+            <span><strong id="stat-posts">—</strong> posts</span>
+            <span><strong id="stat-friends">—</strong> friends</span>
+            <span><strong id="stat-threads">—</strong> conversations</span>
+          </div>
+          <div class="profile-bio">Since 2008-02-14 (Valentine's Day!)</div>
+        </div>
+      </div>
+      <div class="mac-tabs" id="peterbook-tabs">
+        <button class="mac-tab active" data-tab="timeline">Timeline</button>
+        <button class="mac-tab" data-tab="photos">Photos</button>
+        <button class="mac-tab" data-tab="messages">Messages</button>
+        <button class="mac-tab" data-tab="search">Search</button>
+        <button class="mac-tab" data-tab="analysis">Analysis</button>
+      </div>
+
+      <div class="mac-tab-panel active tab-content-area" data-panel="timeline">
+        <div class="filter-bar">
+          <label>Year:</label>
+          <select class="mac-select" id="year-select"></select>
+          <span style="flex:1;"></span>
+          <span id="timeline-status" style="font-size:12px;color:var(--mac-dark-gray);">Loading...</span>
+        </div>
+        <div id="post-list"></div>
+        <div id="timeline-pagination"></div>
+      </div>
+
+      <!-- PHOTOS -->
+      <div class="mac-tab-panel tab-content-area" data-panel="photos">
+        <div class="filter-bar">
+          <label>Category:</label>
+          <select class="mac-select" id="photo-cat-select">
+            <option value="all">All (2,190)</option>
+            <option value="photos">Photos (1,589)</option>
+            <option value="mobile">Mobile Uploads (320)</option>
+            <option value="instagram">Instagram (281)</option>
+          </select>
+          <span style="flex:1;"></span>
+          <span id="photo-status" style="font-size:12px;color:var(--mac-dark-gray);"></span>
+        </div>
+        <div class="photo-grid" id="photo-grid"></div>
+        <div id="photo-pagination"></div>
+      </div>
+
+      <!-- MESSAGES -->
+      <div class="mac-tab-panel tab-content-area" data-panel="messages">
+        <div class="filter-bar" id="msg-header">
+          <label>Message Threads (by message count)</label>
+          <span style="flex:1;"></span>
+          <span id="msg-status" style="font-size:12px;color:var(--mac-dark-gray);"></span>
+        </div>
+        <div id="thread-list"></div>
+        <div id="msg-pagination"></div>
+        <!-- Message detail view (hidden by default) -->
+        <div id="msg-detail" style="display:none;">
+          <div class="filter-bar">
+            <button class="mac-button" id="msg-back-btn">&larr; Back to threads</button>
+            <span style="flex:1;"></span>
+            <strong id="msg-thread-name" style="font-size:14px;"></strong>
+          </div>
+          <div id="msg-messages" style="max-height:600px;overflow-y:auto;padding:8px;"></div>
+        </div>
+      </div>
+
+      <div class="mac-tab-panel tab-content-area" data-panel="search">
+        <div class="mac-search-bar">
+          <input type="text" class="mac-input" id="search-input" placeholder="Search posts, friends, interests...">
+          <button class="mac-button" id="search-btn">Search</button>
+        </div>
+        <div id="search-results"><div class="mac-empty">검색어를 입력하세요.</div></div>
+      </div>
+
+      <div class="mac-tab-panel tab-content-area" data-panel="analysis">
+        <div style="padding:12px;" id="analysis-content"><div class="mac-loading">Loading...</div></div>
+      </div>
+
+      <div class="mac-statusbar">
+        <span>Peterbook Archive Viewer v1.0</span>
+        <span id="db-status">Connecting...</span>
+      </div>
+    </div>
+    <footer class="mac-footer">Local Archive — Last sync: 2026-03-02</footer>
+  </main>
+
+  </div><!-- end main-content -->
+
+  <script src="../shared/js/sql-wasm.js"></script>
+  <script src="../shared/js/common.js"></script>
+
+  <script>
+    // Lock screen logic
+    const PIN = '0220';
+    function checkPin() {
+      const input = document.getElementById('pin-input').value;
+      if (input === PIN) {
+        document.getElementById('lock-screen').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+        sessionStorage.setItem('unlocked', 'true');
+      } else {
+        const err = document.getElementById('pin-error');
+        err.style.visibility = 'visible';
+        document.getElementById('pin-input').value = '';
+        const dialog = document.querySelector('#lock-screen .mac-dialog');
+        dialog.style.animation = 'shake 0.3s';
+        setTimeout(() => { dialog.style.animation = ''; err.style.visibility = 'hidden'; }, 1500);
+      }
+    }
+    document.getElementById('pin-submit').addEventListener('click', checkPin);
+    document.getElementById('pin-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkPin(); });
+    if (sessionStorage.getItem('unlocked') === 'true') {
+      document.getElementById('lock-screen').style.display = 'none';
+      document.getElementById('main-content').style.display = 'block';
+    }
+    document.getElementById('pin-input').focus();
+  </script>
+
+  <script>
+    let db=null, currentPage=1, currentYear='all', msgPage=1, photoPage=1, photoCat='all';
+
+    async function initDB() {
+      try {
+        const SQL = await initSqlJs({locateFile:f=>`../shared/js/${f}`});
+        let resp, dbName;
+        try {
+          resp = await fetch('../shared/data/peterbook.db');
+          if (!resp.ok) throw new Error('not found');
+          dbName = 'peterbook.db (full)';
+        } catch(e) {
+          resp = await fetch('../shared/data/peterbook_public.db');
+          dbName = 'peterbook_public.db';
+        }
+        db = new SQL.Database(new Uint8Array(await resp.arrayBuffer()));
+        document.getElementById('db-status').textContent=dbName+' ✓';
+        return true;
+      } catch(e) { document.getElementById('db-status').textContent='DB error'; return false; }
+    }
+    function query(sql,p=[]){if(!db)return[];const s=db.prepare(sql);if(p.length)s.bind(p);const r=[];while(s.step())r.push(s.getAsObject());s.free();return r;}
+    function queryOne(sql,p=[]){return query(sql,p)[0]||null;}
+
+    // Table detection (public vs full DB)
+    function hasTable(name){
+      try { const r=query("SELECT name FROM sqlite_master WHERE type='table' AND name=?",[name]); return r.length>0; }
+      catch(e){ return false; }
+    }
+
+    function loadProfile(){
+      const p=queryOne('SELECT COUNT(*)as c FROM posts');
+      document.getElementById('stat-posts').textContent=p?p.c.toLocaleString():'—';
+
+      if(hasTable('friends')){
+        const f=queryOne('SELECT COUNT(*)as c FROM friends');
+        document.getElementById('stat-friends').textContent=f?f.c.toLocaleString():'—';
+      } else {
+        document.getElementById('stat-friends').parentElement.style.display='none';
+      }
+
+      if(hasTable('message_threads')){
+        const t=queryOne('SELECT COUNT(*)as c FROM message_threads');
+        document.getElementById('stat-threads').textContent=t?t.c.toLocaleString():'—';
+      } else {
+        document.getElementById('stat-threads').parentElement.style.display='none';
+      }
+    }
+
+    function loadYearFilter(){
+      const years=query('SELECT DISTINCT year FROM posts ORDER BY year DESC');
+      const sel=document.getElementById('year-select');
+      sel.innerHTML='<option value="all">All</option>';
+      years.forEach(r=>{if(r.year)sel.innerHTML+=`<option value="${r.year}">${r.year}</option>`;});
+    }
+
+    function loadTimeline(){
+      const pp=20,off=(currentPage-1)*pp;let w='',p=[];
+      if(currentYear!=='all'){w=' WHERE year=?';p.push(parseInt(currentYear));}
+      const items=query(`SELECT*FROM posts${w} ORDER BY date DESC LIMIT ${pp} OFFSET ${off}`,p);
+      const total=queryOne(`SELECT COUNT(*)as c FROM posts${w}`,p);
+      const tc=total?total.c:0,tp=Math.ceil(tc/pp);
+      document.getElementById('timeline-status').textContent=`${tc.toLocaleString()} posts`+(currentYear!=='all'?` in ${currentYear}`:'');
+      const el=document.getElementById('post-list');el.innerHTML='';
+      items.forEach(row=>{
+        const d=document.createElement('div');d.className='fb-post';
+        const c=row.content?escapeHtml(row.content).substring(0,500):'';
+        const hasImage = !!row.media_path;
+        let contentHtml = '';
+        if (hasImage) {
+          // Parse media_path: could be single string or JSON array
+          let mediaPaths;
+          try {
+            const parsed = JSON.parse(row.media_path);
+            mediaPaths = Array.isArray(parsed) ? parsed : [row.media_path];
+          } catch(e) {
+            mediaPaths = [row.media_path];
+          }
+          const imgSideHtml = createCarouselHtml(mediaPaths);
+          contentHtml = `<div class="fb-post-content"><div class="fb-post-image-side">${imgSideHtml}</div><div class="fb-post-text-side">${c||''}</div></div>`;
+        } else if (c) {
+          contentHtml = `<div class="fb-post-content"><div class="fb-post-text-side" style="width:100%;">${c}</div></div>`;
+        }
+        d.innerHTML=`<div class="fb-post-header"><span><strong>Peter Lee</strong></span><span>${formatDate(row.date,'long')}</span></div>${contentHtml}<div class="fb-post-footer">${row.media_type||'post'}</div>`;
+        el.appendChild(d);
+      });
+      initCarousels();
+      renderPagination(document.getElementById('timeline-pagination'),{page:currentPage,totalPages:tp,total:tc,hasNext:currentPage<tp,hasPrev:currentPage>1},p=>{currentPage=p;loadTimeline();window.scrollTo(0,300);});
+    }
+
+    function loadMessages(){
+      const pp=30,off=(msgPage-1)*pp;
+      const items=query(`SELECT*FROM message_threads ORDER BY message_count DESC LIMIT ${pp} OFFSET ${off}`);
+      const total=queryOne('SELECT COUNT(*)as c FROM message_threads');
+      const tc=total?total.c:0,tp=Math.ceil(tc/pp);
+      document.getElementById('msg-status').textContent=`${tc} threads`;
+      const el=document.getElementById('thread-list');el.innerHTML='';
+      items.forEach((row,i)=>{
+        const rank=off+i+1,d=document.createElement('div');d.className='thread-list-item';
+        d.innerHTML=`<div><div class="thread-name">${rank}. ${escapeHtml(row.thread_name||'Unknown')}</div><div class="thread-meta">${row.participant_count||'?'} participants · ${row.media_count||0} media</div></div><div class="thread-count">${(row.message_count||0).toLocaleString()} msgs</div>`;
+        d.addEventListener('click', () => showThread(row.id, row.thread_name));
+        el.appendChild(d);
+      });
+      renderPagination(document.getElementById('msg-pagination'),{page:msgPage,totalPages:tp,total:tc,hasNext:msgPage<tp,hasPrev:msgPage>1},p=>{msgPage=p;loadMessages();});
+    }
+
+    // PHOTOS GALLERY
+    function loadPhotos(){
+      const pp=60,off=(photoPage-1)*pp;
+      let w='',p=[];
+      if(photoCat!=='all'){w=' WHERE category=?';p.push(photoCat);}
+      const items=query(`SELECT*FROM photos${w} ORDER BY date DESC LIMIT ${pp} OFFSET ${off}`,p);
+      const total=queryOne(`SELECT COUNT(*)as c FROM photos${w}`,p);
+      const tc=total?total.c:0,tp=Math.ceil(tc/pp);
+      document.getElementById('photo-status').textContent=`${tc.toLocaleString()} photos`;
+      const el=document.getElementById('photo-grid');el.innerHTML='';
+      items.forEach(row=>{
+        const d=document.createElement('div');d.className='photo-grid-item';
+        d.innerHTML=`<img src="${escapeHtml(row.media_path)}" alt="${escapeHtml(row.filename)}" loading="lazy" onerror="this.parentElement.style.background='#e0e0e0';this.style.display='none';">`;
+        el.appendChild(d);
+      });
+      renderPagination(document.getElementById('photo-pagination'),{page:photoPage,totalPages:tp,total:tc,hasNext:photoPage<tp,hasPrev:photoPage>1},p=>{photoPage=p;loadPhotos();window.scrollTo(0,300);});
+    }
+
+    // MESSAGE DETAIL VIEW
+    function showThread(threadId, threadName) {
+      document.getElementById('thread-list').style.display = 'none';
+      document.getElementById('msg-pagination').style.display = 'none';
+      document.getElementById('msg-header').style.display = 'none';
+      document.getElementById('msg-detail').style.display = 'block';
+      document.getElementById('msg-thread-name').textContent = threadName;
+
+      const msgs = query('SELECT sender, content, date FROM messages WHERE thread_id = ? ORDER BY date ASC', [threadId]);
+      const el = document.getElementById('msg-messages');
+      el.innerHTML = '';
+
+      if (msgs.length === 0) {
+        el.innerHTML = '<div class="mac-empty">이 스레드의 메시지 데이터가 없습니다.<br>(상위 20개 스레드만 파싱됨)</div>';
+        return;
+      }
+
+      msgs.forEach(m => {
+        const isSent = m.sender === 'Peter Lee';
+        const div = document.createElement('div');
+        div.className = `msg-bubble ${isSent ? 'sent' : 'received'}`;
+        div.innerHTML = `${!isSent ? `<div class="msg-sender">${escapeHtml(m.sender)}</div>` : ''}<div>${escapeHtml(m.content)}</div><div class="msg-time">${m.date ? formatDate(m.date, 'long') : ''}</div>`;
+        el.appendChild(div);
+      });
+
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function hideThread() {
+      document.getElementById('msg-detail').style.display = 'none';
+      document.getElementById('thread-list').style.display = 'block';
+      document.getElementById('msg-pagination').style.display = 'block';
+      document.getElementById('msg-header').style.display = 'flex';
+    }
+
+    function doSearch(){
+      const q=document.getElementById('search-input').value.trim(),el=document.getElementById('search-results');
+      if(!q){el.innerHTML='<div class="mac-empty">검색어를 입력하세요.</div>';return;}
+      const posts=query(`SELECT date,content FROM posts WHERE content LIKE? ORDER BY date DESC LIMIT 20`,[`%${q}%`]);
+      const friends=hasTable('friends')?query(`SELECT name,date_added FROM friends WHERE name LIKE? ORDER BY name LIMIT 20`,[`%${q}%`]):[];
+      const threads=hasTable('message_threads')?query(`SELECT thread_name,message_count FROM message_threads WHERE thread_name LIKE? ORDER BY message_count DESC LIMIT 20`,[`%${q}%`]):[];
+      const interests=hasTable('ad_interests')?query(`SELECT interest FROM ad_interests WHERE interest LIKE? LIMIT 20`,[`%${q}%`]):[];
+      const t=posts.length+friends.length+threads.length+interests.length;
+      if(!t){el.innerHTML=`<div class="mac-empty">"${escapeHtml(q)}" — 결과 없음</div>`;return;}
+      el.innerHTML=`<div style="padding:6px 8px;font-size:14px;font-weight:bold;border-bottom:1px solid var(--mac-black);">${t} results</div>`;
+      if(threads.length){el.innerHTML+='<div style="padding:6px 8px;font-size:13px;font-weight:bold;background:#f0f0f0;">Message Threads</div>';threads.forEach(r=>{el.innerHTML+=`<div class="mac-search-result-item"><strong>${escapeHtml(r.thread_name)}</strong> — ${r.message_count.toLocaleString()} msgs</div>`;});}
+      if(friends.length){el.innerHTML+='<div style="padding:6px 8px;font-size:13px;font-weight:bold;background:#f0f0f0;">Friends</div>';friends.forEach(r=>{el.innerHTML+=`<div class="mac-search-result-item">${escapeHtml(r.name)} <span style="color:var(--mac-dark-gray);">added ${r.date_added||'—'}</span></div>`;});}
+      if(interests.length){el.innerHTML+='<div style="padding:6px 8px;font-size:13px;font-weight:bold;background:#f0f0f0;">Ad Interests</div>';interests.forEach(r=>{el.innerHTML+=`<div class="mac-search-result-item">${escapeHtml(r.interest)}</div>`;});}
+    }
+
+    function loadAnalysis(){
+      const el=document.getElementById('analysis-content');
+      const pby=query('SELECT year,COUNT(*)as c FROM posts GROUP BY year ORDER BY year');
+      const tp=queryOne('SELECT COUNT(*)as c FROM posts');
+      const tf=hasTable('friends')?queryOne('SELECT COUNT(*)as c FROM friends'):null;
+      const tt=hasTable('message_threads')?queryOne('SELECT COUNT(*)as c FROM message_threads'):null;
+      const tm=hasTable('message_threads')?queryOne('SELECT SUM(message_count)as c FROM message_threads'):null;
+      const top10=hasTable('message_threads')?query('SELECT thread_name,message_count FROM message_threads ORDER BY message_count DESC LIMIT 10'):[];
+      const interests=hasTable('ad_interests')?query('SELECT interest FROM ad_interests LIMIT 50'):[];
+      const offmeta=hasTable('off_meta_activity')?query('SELECT site FROM off_meta_activity ORDER BY event_count DESC LIMIT 30'):[];
+      const mx=Math.max(...pby.map(r=>r.c),1);
+      const bars=pby.map((r,i)=>`<div class="bar-col"><div class="bar-value">${r.c}</div><div class="bar-fill" style="height:${(r.c/mx)*100}%"></div><div class="bar-label">'${String(r.year).slice(2)}</div></div>`).join('');
+      const trows=top10.map((r,i)=>`<tr><td style="padding:4px 8px;">${i+1}</td><td style="padding:4px 8px;">${escapeHtml(r.thread_name)}</td><td style="padding:4px 8px;text-align:right;font-weight:bold;">${r.message_count.toLocaleString()}</td></tr>`).join('');
+
+      // --- Posting by Day of Week ---
+      const dowData = query("SELECT CAST(strftime('%w', date) AS INTEGER) as dow, COUNT(*) as c FROM posts WHERE date IS NOT NULL AND date != '' GROUP BY dow ORDER BY dow");
+      const dowNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const dowMap = {}; dowData.forEach(r => { dowMap[r.dow] = r.c; });
+      const maxDow = Math.max(...Object.values(dowMap), 1);
+      const dowBars = [0,1,2,3,4,5,6].map(d => {
+        const c = dowMap[d] || 0;
+        return `<div class="dow-col">
+          <div class="bar-value">${c}</div>
+          <div class="bar-fill" style="height:${(c / maxDow) * 100}%"></div>
+          <div class="bar-label" style="writing-mode:horizontal-tb;">${dowNames[d]}</div>
+        </div>`;
+      }).join('');
+
+      // --- Posting by Hour ---
+      const hourData = query("SELECT CAST(strftime('%H', date) AS INTEGER) as hr, COUNT(*) as c FROM posts WHERE date IS NOT NULL AND date LIKE '%:%' GROUP BY hr ORDER BY hr");
+      const hourMap = {}; hourData.forEach(r => { hourMap[r.hr] = r.c; });
+      const maxHour = Math.max(...Object.values(hourMap), 1);
+      let hourBars = '';
+      if (hourData.length > 0) {
+        hourBars = Array.from({length:24}, (_, h) => {
+          const c = hourMap[h] || 0;
+          return `<div class="bar-col">
+            <div class="bar-value">${c || ''}</div>
+            <div class="bar-fill" style="height:${(c / maxHour) * 100}%"></div>
+            <div class="bar-label" style="writing-mode:horizontal-tb;font-size:9px;">${h}</div>
+          </div>`;
+        }).join('');
+      }
+
+      // --- Friends added per year ---
+      const friendsByYear = hasTable('friends') ? query("SELECT substr(date_added,1,4) as yr, COUNT(*) as c FROM friends WHERE date_added IS NOT NULL AND date_added != '' GROUP BY yr ORDER BY yr") : [];
+      const maxFriend = Math.max(...friendsByYear.map(r => r.c), 1);
+      const friendBars = friendsByYear.map(r =>
+        `<div class="bar-col"><div class="bar-value">${r.c}</div><div class="bar-fill" style="height:${(r.c/maxFriend)*100}%"></div><div class="bar-label">'${String(r.yr).slice(2)}</div></div>`
+      ).join('');
+
+      // --- Reaction stats ---
+      let reactionHtml = '';
+      try {
+        const totalReactions = queryOne('SELECT COUNT(*) as c FROM reactions');
+        const reactionsByType = query('SELECT reaction_type as type, COUNT(*) as c FROM reactions GROUP BY reaction_type ORDER BY c DESC');
+        if (totalReactions && totalReactions.c > 0) {
+          const maxReact = reactionsByType.length > 0 ? reactionsByType[0].c : 1;
+          reactionHtml = `<div class="mac-card stat-card" style="min-width:100%;margin-bottom:12px;"><div class="mac-card-header">Total Reactions: ${totalReactions.c.toLocaleString()}</div><div class="mac-card-body" style="text-align:left;padding:8px;">`;
+          reactionHtml += reactionsByType.map(r =>
+            `<div class="h-bar-row">
+              <div class="h-bar-label" style="width:80px;">${escapeHtml(r.type)}</div>
+              <div class="h-bar-track"><div class="h-bar-fill" style="width:${(r.c/maxReact)*100}%"></div></div>
+              <div class="h-bar-value">${r.c.toLocaleString()}</div>
+            </div>`
+          ).join('');
+          reactionHtml += '</div></div>';
+        }
+      } catch(e) { /* reactions table may not exist */ }
+
+      // --- Top searched terms ---
+      let searchHtml = '';
+      try {
+        const searches = query('SELECT term, COUNT(*) as c FROM search_history GROUP BY term ORDER BY c DESC LIMIT 20');
+        if (searches.length > 0) {
+          const maxSearch = searches[0].c;
+          searchHtml = searches.map((r, i) =>
+            `<div class="h-bar-row">
+              <div class="h-bar-rank">${i+1}</div>
+              <div class="h-bar-label">${escapeHtml(r.term)}</div>
+              <div class="h-bar-track"><div class="h-bar-fill" style="width:${(r.c/maxSearch)*100}%"></div></div>
+              <div class="h-bar-value">${r.c}</div>
+            </div>`
+          ).join('');
+        }
+      } catch(e) { /* search_history may not exist */ }
+
+      el.innerHTML=`
+        <h3 style="font-size:16px;border-bottom:1px solid var(--mac-black);padding-bottom:4px;margin-bottom:12px;">Peterbook Analytics</h3>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+          <div class="mac-card stat-card"><div class="mac-card-header">Posts</div><div class="mac-card-body"><div class="stat-value">${tp?tp.c.toLocaleString():0}</div><div class="stat-sub">2009~2026</div></div></div>
+          ${tf?`<div class="mac-card stat-card"><div class="mac-card-header">Friends</div><div class="mac-card-body"><div class="stat-value">${tf.c.toLocaleString()}</div></div></div>`:''}
+          ${tt?`<div class="mac-card stat-card"><div class="mac-card-header">Conversations</div><div class="mac-card-body"><div class="stat-value">${tt.c.toLocaleString()}</div></div></div>`:''}
+          ${tm&&tm.c?`<div class="mac-card stat-card"><div class="mac-card-header">Total Messages</div><div class="mac-card-body"><div class="stat-value">${tm.c.toLocaleString()}</div></div></div>`:''}
+        </div>
+
+        <div class="analysis-section">
+          <h4 style="font-size:14px;margin:16px 0 4px;">Posts per Year</h4>
+          <div class="bar-chart">${bars}</div>
+        </div>
+
+        <div class="analysis-section">
+          <h4 style="font-size:14px;margin:16px 0 4px;">Posting by Day of Week</h4>
+          <div class="dow-chart">${dowBars}</div>
+        </div>
+
+        ${hourBars ? `<div class="analysis-section">
+          <h4 style="font-size:14px;margin:16px 0 4px;">Posting by Hour of Day</h4>
+          <div class="bar-chart" style="gap:1px;">${hourBars}</div>
+        </div>` : ''}
+
+        ${hasTable('friends') ? `<div class="analysis-section">
+          <h4 style="font-size:14px;margin:16px 0 4px;">Friends Added per Year</h4>
+          ${friendBars ? `<div class="bar-chart">${friendBars}</div>` : '<div class="mac-empty" style="padding:8px;">No date data available for friends</div>'}
+        </div>` : ''}
+
+        ${reactionHtml ? `<div class="analysis-section">
+          <h4 style="font-size:14px;margin:16px 0 4px;">Reactions Breakdown</h4>
+          ${reactionHtml}
+        </div>` : ''}
+
+        ${searchHtml ? `<div class="analysis-section">
+          <h4 style="font-size:14px;margin:16px 0 4px;">Top Searched Terms</h4>
+          <div style="border:1px solid var(--mac-black);padding:8px;margin:12px 0;">${searchHtml}</div>
+        </div>` : ''}
+
+        ${top10.length > 0 ? `<div class="analysis-section">
+          <h4 style="font-size:14px;margin:16px 0 4px;">Top 10 Message Threads</h4>
+          <table style="width:100%;border-collapse:collapse;border:1px solid var(--mac-black);font-size:13px;"><tr style="background:#e0e0e0;"><th style="padding:4px 8px;text-align:left;">#</th><th style="padding:4px 8px;text-align:left;">Thread</th><th style="padding:4px 8px;text-align:right;">Messages</th></tr>${trows}</table>
+        </div>` : ''}
+
+        ${interests.length > 0 ? `<div class="analysis-section">
+          <h4 style="font-size:14px;margin:16px 0 4px;">Facebook Ad Interests</h4>
+          <div style="padding:8px;">${interests.map(r=>`<span class="interest-tag">${escapeHtml(r.interest)}</span>`).join('')}</div>
+        </div>` : ''}
+
+        ${offmeta.length > 0 ? `<div class="analysis-section">
+          <h4 style="font-size:14px;margin:16px 0 4px;">Off-Meta Activity</h4>
+          <div style="border:1px solid var(--mac-black);max-height:300px;overflow-y:auto;">${offmeta.map(r=>`<div class="offmeta-item">${escapeHtml(r.site)}</div>`).join('')}</div>
+        </div>` : ''}`;
+    }
+
+    document.addEventListener('DOMContentLoaded',async()=>{
+      initTabs('#peterbook-tabs');
+      document.getElementById('year-select').addEventListener('change',e=>{currentYear=e.target.value;currentPage=1;loadTimeline();});
+      document.getElementById('search-btn').addEventListener('click',doSearch);
+      document.getElementById('search-input').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
+      const ok=await initDB();
+      document.getElementById('photo-cat-select').addEventListener('change',e=>{photoCat=e.target.value;photoPage=1;loadPhotos();});
+      document.getElementById('msg-back-btn').addEventListener('click', hideThread);
+      if(ok){
+        loadProfile();loadYearFilter();loadTimeline();loadPhotos();
+        // Hide Messages tab if no messages table (public DB)
+        if(!hasTable('messages')){
+          document.querySelector('[data-tab="messages"]').style.display='none';
+        } else {
+          loadMessages();
+        }
+        loadAnalysis();
+      }
+    });
+  </script>
+</body>
+</html>

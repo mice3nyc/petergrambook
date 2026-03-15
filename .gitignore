@@ -1,0 +1,20 @@
+# Private databases (contain personal messages, friends, etc.)
+shared/data/petergram.db
+shared/data/peterbook.db
+shared/data/build_databases.py
+
+# Media symlinks (local only, point to backup files)
+media/
+
+# macOS
+.DS_Store
+Icon?
+
+# Analysis raw data (contains personal info)
+analysis/facebook_data.json
+analysis/instagram_data.json
+analysis/parse_facebook.py
+
+# Temp files
+*.pyc
+__pycache__/

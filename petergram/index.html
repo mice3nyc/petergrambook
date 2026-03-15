@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Petergram — peter_nolgong</title>
+  <link rel="stylesheet" href="../shared/css/mac-classic.css">
+  <style>
+    /* Lock screen styles */
+    #lock-screen {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 99999;
+      background-color: var(--mac-bg);
+      background-image:
+        linear-gradient(45deg, #d0d0d0 25%, transparent 25%),
+        linear-gradient(-45deg, #d0d0d0 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #d0d0d0 75%),
+        linear-gradient(-45deg, transparent 75%, #d0d0d0 75%);
+      background-size: 4px 4px;
+      background-position: 0 0, 0 2px, 2px -2px, -2px 0px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-10px); }
+      40% { transform: translateX(10px); }
+      60% { transform: translateX(-6px); }
+      80% { transform: translateX(6px); }
+    }
+    .petergram-app { padding-top: 30px; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+    .petergram-window { width: 98%; max-width: 1100px; margin: 12px auto; }
+    .profile-header { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-bottom: 1px solid var(--mac-black); }
+    .profile-avatar { width: 48px; height: 48px; border: 2px solid var(--mac-black); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+    .profile-info { flex: 1; }
+    .profile-name { font-weight: bold; font-size: 16px; }
+    .profile-stats { font-size: 13px; margin-top: 4px; display: flex; gap: 16px; }
+    .back-link { display: inline-block; padding: 4px 10px; font-size: 13px; text-decoration: none; color: var(--mac-black); border: 1px solid var(--mac-black); background: var(--mac-white); margin: 8px; }
+    .back-link:hover { background: var(--mac-black); color: var(--mac-white); }
+    .year-filter-bar { padding: 6px 8px; border-bottom: 1px solid var(--mac-black); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .year-filter-bar label { font-size: 13px; font-weight: bold; }
+    .petergram-grid { padding: 8px; }
+    .post-list-item { display: flex; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--mac-light-gray); cursor: pointer; }
+    .post-list-item:hover { background: #f0f0f0; }
+    .post-list-thumb { width: 100px; height: 100px; border: 1px solid var(--mac-black); background: #e0e0e0; flex-shrink: 0; overflow: hidden; }
+    .post-list-thumb.story-ratio { width: 56px; height: 100px; /* 9:16 ratio */ }
+    .post-list-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .post-list-content { flex: 1; font-size: 13px; }
+    .post-list-date { font-size: 12px; color: var(--mac-dark-gray); margin-bottom: 4px; }
+    .tab-content-area { min-height: 500px; }
+    .stat-card { flex: 1; min-width: 160px; }
+    .stat-card .mac-card-body { text-align: center; padding: 16px; }
+    .stat-value { font-size: 28px; font-weight: bold; }
+    .stat-sub { font-size: 12px; color: var(--mac-dark-gray); margin-top: 4px; }
+    .bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 150px; padding: 8px; border: 1px solid var(--mac-black); margin: 12px 0; }
+    .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+    .bar-fill { width: 100%; background: var(--mac-black); min-height: 1px; }
+    .bar-label { font-size: 10px; margin-top: 4px; writing-mode: vertical-rl; text-orientation: mixed; }
+    .bar-value { font-size: 9px; margin-bottom: 2px; }
+    .heatmap-table { border-collapse: collapse; width: 100%; margin: 12px 0; border: 1px solid var(--mac-black); font-size: 11px; }
+    .heatmap-table th, .heatmap-table td { padding: 4px 6px; text-align: center; border: 1px solid var(--mac-light-gray); }
+    .heatmap-table th { background: #e0e0e0; font-weight: bold; font-size: 10px; }
+    .heatmap-cell-0 { background: var(--mac-white); }
+    .heatmap-cell-1 { background: #d0d0d0; }
+    .heatmap-cell-2 { background: #a0a0a0; }
+    .heatmap-cell-3 { background: #707070; color: #fff; }
+    .heatmap-cell-4 { background: #404040; color: #fff; }
+    .heatmap-cell-5 { background: var(--mac-black); color: #fff; }
+    .h-bar-row { display: flex; align-items: center; margin: 3px 0; font-size: 12px; }
+    .h-bar-rank { width: 24px; text-align: right; margin-right: 6px; font-size: 11px; color: var(--mac-dark-gray); }
+    .h-bar-label { width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .h-bar-track { flex: 1; height: 14px; background: #f0f0f0; border: 1px solid var(--mac-black); margin: 0 6px; }
+    .h-bar-fill { height: 100%; background: var(--mac-black); }
+    .h-bar-value { width: 36px; font-size: 11px; text-align: right; }
+    .stacked-bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 150px; padding: 8px; border: 1px solid var(--mac-black); margin: 12px 0; }
+    .stacked-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+    .stacked-fill-post { width: 100%; background: var(--mac-black); }
+    .stacked-fill-story { width: 100%; background: #888; }
+    .analysis-legend { display: flex; gap: 16px; font-size: 12px; margin: 4px 0 12px; }
+    .analysis-legend-item { display: flex; align-items: center; gap: 4px; }
+    .legend-swatch { width: 12px; height: 12px; border: 1px solid var(--mac-black); }
+    .pie-chart-container { display: flex; align-items: center; gap: 24px; margin: 12px 0; padding: 12px; border: 1px solid var(--mac-black); }
+    .pie-labels { font-size: 13px; }
+    .pie-label-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+  </style>
+</head>
+<body>
+  <!-- LOCK SCREEN -->
+  <div id="lock-screen">
+    <div class="mac-dialog" style="width:360px;">
+      <div class="mac-window-titlebar">
+        <span class="mac-window-title">Petergram</span>
+      </div>
+      <div style="padding:24px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:16px;">&#x1F512;</div>
+        <p style="font-size:16px;margin-bottom:16px;">Enter PIN to access archive</p>
+        <input type="password" id="pin-input" maxlength="4" pattern="[0-9]*" inputmode="numeric"
+               style="font-size:24px;text-align:center;width:120px;letter-spacing:8px;" class="mac-input">
+        <div id="pin-error" style="color:red;font-size:13px;margin-top:8px;visibility:hidden;">Access Denied</div>
+        <button class="mac-button primary" id="pin-submit" style="margin-top:16px;">Enter</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="main-content" style="display:none;">
+  <nav class="mac-menubar" role="menubar">
+    <span class="menu-item menu-apple">&#63743;</span>
+    <span class="menu-item"><strong>Petergram</strong></span>
+    <span class="menu-item">File</span>
+    <span class="menu-item">View</span>
+    <span class="menu-spacer"></span>
+    <span class="menu-clock"></span>
+  </nav>
+
+  <main class="petergram-app mac-desktop">
+    <a href="../index.html" class="back-link">&larr; Back to Archive</a>
+
+    <div class="mac-window petergram-window fullscreen" id="petergram-main">
+      <div class="mac-window-titlebar">
+        <div class="mac-window-close"></div>
+        <span class="mac-window-title">Petergram — peter_nolgong</span>
+      </div>
+
+      <div class="profile-header">
+        <div class="profile-avatar">P</div>
+        <div class="profile-info">
+          <div class="profile-name">peter_nolgong</div>
+          <div class="profile-stats">
+            <span><strong id="stat-posts">—</strong> posts</span>
+            <span><strong id="stat-stories">—</strong> stories</span>
+            <span><strong id="stat-followers">—</strong> followers</span>
+            <span><strong id="stat-following">—</strong> following</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mac-tabs" id="petergram-tabs">
+        <button class="mac-tab active" data-tab="timeline">Timeline</button>
+        <button class="mac-tab" data-tab="search">Search</button>
+        <button class="mac-tab" data-tab="analysis">Analysis</button>
+      </div>
+
+      <!-- TIMELINE -->
+      <div class="mac-tab-panel active tab-content-area" data-panel="timeline">
+        <div class="year-filter-bar">
+          <label>Year:</label>
+          <select class="mac-select" id="year-select"></select>
+          <label style="margin-left:12px;">Type:</label>
+          <select class="mac-select" id="type-select">
+            <option value="all">All</option>
+            <option value="posts">Posts</option>
+            <option value="stories">Stories</option>
+          </select>
+          <div class="view-toggle" id="view-toggle">
+            <button class="view-toggle-btn active" data-view="grid">&#9638;</button>
+            <button class="view-toggle-btn" data-view="list">&#9776;</button>
+          </div>
+          <span style="flex:1;"></span>
+          <span id="timeline-status" style="font-size:12px; color:var(--mac-dark-gray);">Loading DB...</span>
+        </div>
+        <div class="post-grid petergram-grid" id="post-grid"></div>
+        <div id="timeline-pagination"></div>
+      </div>
+
+      <!-- SEARCH -->
+      <div class="mac-tab-panel tab-content-area" data-panel="search">
+        <div class="mac-search-bar">
+          <input type="text" class="mac-input" id="search-input" placeholder="Search captions, hashtags...">
+          <button class="mac-button" id="search-btn">Search</button>
+        </div>
+        <div id="search-results"><div class="mac-empty">검색어를 입력하세요.</div></div>
+      </div>
+
+      <!-- ANALYSIS -->
+      <div class="mac-tab-panel tab-content-area" data-panel="analysis">
+        <div style="padding: 12px;" id="analysis-content">
+          <div class="mac-loading">Loading analysis data...</div>
+        </div>
+      </div>
+
+      <div class="mac-statusbar">
+        <span>Petergram Archive Viewer v1.0</span>
+        <span id="db-status">Connecting...</span>
+      </div>
+    </div>
+
+    <footer class="mac-footer">Local Archive — Last sync: 2026-03-02</footer>
+  </main>
+
+  </div><!-- end main-content -->
+
+  <script src="../shared/js/sql-wasm.js"></script>
+  <script src="../shared/js/common.js"></script>
+
+  <script>
+    // Lock screen logic
+    const PIN = '0220';
+    function checkPin() {
+      const input = document.getElementById('pin-input').value;
+      if (input === PIN) {
+        document.getElementById('lock-screen').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+        sessionStorage.setItem('unlocked', 'true');
+      } else {
+        const err = document.getElementById('pin-error');
+        err.style.visibility = 'visible';
+        document.getElementById('pin-input').value = '';
+        const dialog = document.querySelector('#lock-screen .mac-dialog');
+        dialog.style.animation = 'shake 0.3s';
+        setTimeout(() => { dialog.style.animation = ''; err.style.visibility = 'hidden'; }, 1500);
+      }
+    }
+    document.getElementById('pin-submit').addEventListener('click', checkPin);
+    document.getElementById('pin-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkPin(); });
+    if (sessionStorage.getItem('unlocked') === 'true') {
+      document.getElementById('lock-screen').style.display = 'none';
+      document.getElementById('main-content').style.display = 'block';
+    }
+    document.getElementById('pin-input').focus();
+  </script>
+
+  <script>
+    let db = null;
+    let currentPage = 1;
+    let currentYear = 'all';
+    let currentType = 'all';
+    let currentView = 'grid';
+
+    // ===== DATABASE =====
+    async function initDB() {
+      try {
+        const SQL = await initSqlJs({ locateFile: f => `../shared/js/${f}` });
+        const resp = await fetch('../shared/data/petergram.db');
+        const buf = await resp.arrayBuffer();
+        db = new SQL.Database(new Uint8Array(buf));
+        document.getElementById('db-status').textContent = 'petergram.db ✓';
+        return true;
+      } catch(e) {
+        console.error('DB load failed:', e);
+        document.getElementById('db-status').textContent = 'DB error — run start.sh';
+        document.getElementById('timeline-status').textContent = 'DB 로드 실패. start.sh로 실행해주세요.';
+        return false;
+      }
+    }
+
+    function query(sql, params = []) {
+      if (!db) return [];
+      const stmt = db.prepare(sql);
+      if (params.length) stmt.bind(params);
+      const rows = [];
+      while (stmt.step()) rows.push(stmt.getAsObject());
+      stmt.free();
+      return rows;
+    }
+
+    function queryOne(sql, params = []) {
+      const rows = query(sql, params);
+      return rows[0] || null;
+    }
+
+    // ===== TABLE DETECTION (public vs full DB) =====
+    function hasTable(name) {
+      try {
+        const r = query("SELECT name FROM sqlite_master WHERE type='table' AND name=?", [name]);
+        return r.length > 0;
+      } catch(e) { return false; }
+    }
+
+    // ===== PROFILE STATS =====
+    function loadProfileStats() {
+      const posts = queryOne('SELECT COUNT(*) as c FROM posts');
+      const stories = queryOne('SELECT COUNT(*) as c FROM stories');
+      document.getElementById('stat-posts').textContent = posts ? posts.c.toLocaleString() : '—';
+      document.getElementById('stat-stories').textContent = stories ? stories.c.toLocaleString() : '—';
+
+      if (hasTable('connections')) {
+        const followers = queryOne("SELECT COUNT(*) as c FROM connections WHERE type='follower'");
+        const following = queryOne("SELECT COUNT(*) as c FROM connections WHERE type='following'");
+        document.getElementById('stat-followers').textContent = followers ? followers.c.toLocaleString() : '—';
+        document.getElementById('stat-following').textContent = following ? following.c.toLocaleString() : '—';
+      } else {
+        // Public DB — hide follower/following stats
+        document.getElementById('stat-followers').parentElement.style.display = 'none';
+        document.getElementById('stat-following').parentElement.style.display = 'none';
+      }
+    }
+
+    // ===== YEAR FILTER =====
+    function loadYearFilter() {
+      const years = query('SELECT DISTINCT year FROM posts UNION SELECT DISTINCT year FROM stories ORDER BY year DESC');
+      const sel = document.getElementById('year-select');
+      sel.innerHTML = '<option value="all">All</option>';
+      years.forEach(r => {
+        if (r.year) sel.innerHTML += `<option value="${r.year}">${r.year}</option>`;
+      });
+    }
+
+    // ===== MEDIA PATH =====
+    function getMediaPath(row) {
+      if (row.media_path) return row.media_path;
+      return null;
+    }
+
+    /**
+     * Get all image paths for a post.
+     * If media_path is a JSON array, parse it.
+     * Otherwise, check for sequential files (_1, _2, _3, etc.).
+     * Returns an array of paths.
+     */
+    function getMediaPaths(row) {
+      const path = getMediaPath(row);
+      if (!path) return [];
+
+      // If media_path is a JSON array string, parse it
+      if (path.startsWith('[')) {
+        try {
+          const arr = JSON.parse(path);
+          if (Array.isArray(arr) && arr.length > 0) return arr;
+        } catch(e) { /* not JSON, treat as single path */ }
+      }
+
+      // Check for sequential naming pattern: name_1.ext, name_2.ext, ...
+      // Instagram exports use patterns like 202301_HHMMSS_1.jpg
+      const seqMatch = path.match(/^(.+_)(\d+)(\.\w+)$/);
+      if (seqMatch) {
+        const [, prefix, numStr, ext] = seqMatch;
+        const num = parseInt(numStr);
+        // Only treat as multi-image if the number is 1 (start of sequence)
+        if (num === 1) {
+          // We can't scan directories from browser, so store paths as data attribute
+          // for now return single image; multi-image data can be populated from DB later
+          return [path];
+        }
+      }
+
+      return [path];
+    }
+
+    // ===== TIMELINE =====
+    function loadTimeline() {
+      let sql, countSql;
+      const perPage = 24;
+      const offset = (currentPage - 1) * perPage;
+      const params = [];
+      let where = '';
+
+      if (currentYear !== 'all') {
+        where = ' WHERE year = ?';
+        params.push(parseInt(currentYear));
+      }
+
+      if (currentType === 'posts') {
+        sql = `SELECT id, date, caption, media_type, media_path, 'post' as source FROM posts${where} ORDER BY date DESC LIMIT ${perPage} OFFSET ${offset}`;
+        countSql = `SELECT COUNT(*) as c FROM posts${where}`;
+      } else if (currentType === 'stories') {
+        sql = `SELECT id, date, '' as caption, media_type, media_path, 'story' as source FROM stories${where} ORDER BY date DESC LIMIT ${perPage} OFFSET ${offset}`;
+        countSql = `SELECT COUNT(*) as c FROM stories${where}`;
+      } else {
+        sql = `SELECT id, date, caption, media_type, media_path, 'post' as source FROM posts${where}
+               UNION ALL
+               SELECT id, date, '' as caption, media_type, media_path, 'story' as source FROM stories${where}
+               ORDER BY date DESC LIMIT ${perPage} OFFSET ${offset}`;
+        countSql = `SELECT (SELECT COUNT(*) FROM posts${where}) + (SELECT COUNT(*) FROM stories${where}) as c`;
+      }
+
+      const items = query(sql, currentType === 'all' ? [...params, ...params] : params);
+      const total = queryOne(countSql, params);
+      const totalCount = total ? total.c : 0;
+      const totalPages = Math.ceil(totalCount / perPage);
+
+      document.getElementById('timeline-status').textContent =
+        `${totalCount.toLocaleString()} items` + (currentYear !== 'all' ? ` in ${currentYear}` : '');
+
+      const grid = document.getElementById('post-grid');
+      grid.innerHTML = '';
+
+      if (items.length === 0) {
+        grid.innerHTML = '<div class="mac-empty">No items found.</div>';
+        grid.className = 'petergram-grid';
+        return;
+      }
+
+      const isStoryMode = currentType === 'stories';
+
+      if (currentView === 'grid') {
+        grid.className = 'post-grid petergram-grid';
+        // Adjust grid columns: 5 columns for stories (narrow tall cards), default 3 for posts
+        if (isStoryMode) {
+          grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+        } else {
+          grid.style.gridTemplateColumns = '';  // use default from CSS
+        }
+        items.forEach(row => {
+          const card = document.createElement('div');
+          card.className = 'mac-card';
+          const mediaPaths = getMediaPaths(row);
+          const useStoryRatio = isStoryMode || (currentType === 'all' && row.source === 'story');
+          const storyClass = useStoryRatio ? ' story-ratio' : '';
+          const imgHtml = mediaPaths.length > 0
+            ? createCarouselHtml(mediaPaths, storyClass)
+            : `<div class="mac-card-image${storyClass}"><span class="placeholder-icon">${row.source === 'story' ? '◉' : '&#9633;'}</span></div>`;
+          const badge = row.source === 'story' ? '<span style="font-size:10px;border:1px solid #000;padding:0 4px;">STORY</span>' : '';
+          card.setAttribute('data-media-paths', JSON.stringify(mediaPaths));
+          card.innerHTML = `
+            ${imgHtml}
+            <div class="mac-card-body">
+              <div class="mac-card-header" style="border:none;padding:0;font-size:12px;">${formatDate(row.date)} ${badge}</div>
+              ${row.caption ? createCaptionHtml(row.caption) : ''}
+            </div>`;
+          grid.appendChild(card);
+        });
+      } else {
+        grid.className = 'petergram-grid';
+        grid.style.gridTemplateColumns = '';
+        items.forEach(row => {
+          const item = document.createElement('div');
+          item.className = 'post-list-item';
+          const mediaPath = getMediaPath(row);
+          const useStoryRatio = isStoryMode || (currentType === 'all' && row.source === 'story');
+          const thumbStoryClass = useStoryRatio ? ' story-ratio' : '';
+          const thumbHtml = mediaPath
+            ? `<div class="post-list-thumb${thumbStoryClass}"><img src="${escapeHtml(mediaPath)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='&#9633;'"></div>`
+            : `<div class="post-list-thumb${thumbStoryClass}" style="display:flex;align-items:center;justify-content:center;color:var(--mac-mid-gray);">${row.source === 'story' ? '◉' : '&#9633;'}</div>`;
+          const badge = row.source === 'story' ? ' [STORY]' : '';
+          item.innerHTML = `
+            ${thumbHtml}
+            <div class="post-list-content">
+              <div class="post-list-date">${formatDate(row.date, 'long')}${badge}</div>
+              ${row.caption ? `<div class="mac-card-caption-box">${escapeHtml(row.caption)}</div>` : '<div style="color:var(--mac-mid-gray);font-size:12px;">No caption</div>'}
+            </div>`;
+          grid.appendChild(item);
+        });
+      }
+
+      // Add error handlers to images and activate carousel controls
+      grid.querySelectorAll('.mac-card-image img, .carousel-slide img').forEach(img => {
+        img.onerror = function() {
+          const parent = this.closest('.mac-card-image') || this.closest('.carousel-slide');
+          if (parent) parent.innerHTML = '<span class="placeholder-icon">&#9633;</span>';
+        };
+      });
+      initCarousels();
+
+      renderPagination(document.getElementById('timeline-pagination'),
+        { page: currentPage, totalPages, total: totalCount, hasNext: currentPage < totalPages, hasPrev: currentPage > 1 },
+        p => { currentPage = p; loadTimeline(); window.scrollTo(0, 300); }
+      );
+    }
+
+    // ===== SEARCH =====
+    function doSearch() {
+      const q = document.getElementById('search-input').value.trim();
+      const el = document.getElementById('search-results');
+      if (!q) { el.innerHTML = '<div class="mac-empty">검색어를 입력하세요.</div>'; return; }
+
+      const results = query(
+        `SELECT id, date, caption, media_type FROM posts WHERE caption LIKE ? ORDER BY date DESC LIMIT 50`,
+        [`%${q}%`]
+      );
+
+      if (results.length === 0) {
+        el.innerHTML = `<div class="mac-empty">"${escapeHtml(q)}" — 결과 없음</div>`;
+        return;
+      }
+
+      el.innerHTML = `<div style="padding:6px 8px;font-size:13px;font-weight:bold;border-bottom:1px solid var(--mac-light-gray);">${results.length} results for "${escapeHtml(q)}"</div>`;
+      results.forEach(row => {
+        const item = document.createElement('div');
+        item.className = 'mac-search-result-item';
+        item.innerHTML = `<strong>${formatDate(row.date)}</strong> — ${escapeHtml(truncateText(row.caption || '', 120))}`;
+        el.appendChild(item);
+      });
+    }
+
+    // ===== ANALYSIS =====
+    function loadAnalysis() {
+      const el = document.getElementById('analysis-content');
+      try {
+      const postsByYear = query('SELECT year, COUNT(*) as c FROM posts GROUP BY year ORDER BY year');
+      const storiesByYear = query('SELECT year, COUNT(*) as c FROM stories GROUP BY year ORDER BY year');
+      const totalPosts = queryOne('SELECT COUNT(*) as c FROM posts');
+      const totalStories = queryOne('SELECT COUNT(*) as c FROM stories');
+      const totalLikes = hasTable('likes') ? queryOne('SELECT COUNT(*) as c FROM likes') : null;
+      const firstPost = queryOne('SELECT date FROM posts ORDER BY date ASC LIMIT 1');
+      const lastPost = queryOne('SELECT date FROM posts ORDER BY date DESC LIMIT 1');
+
+      // --- Posts per Year bar chart ---
+      const maxVal = Math.max(...postsByYear.map((r, i) => r.c), 1);
+      const barsHtml = postsByYear.map((r, i) =>
+        `<div class="bar-col">
+          <div class="bar-value">${r.c}</div>
+          <div class="bar-fill " style="height:${(r.c / maxVal) * 100}%"></div>
+          <div class="bar-label">${r.year}</div>
+        </div>`
+      ).join('');
+
+      // --- Stories per Year bar chart ---
+      const maxStory = Math.max(...storiesByYear.map((r, i) => r.c), 1);
+      const storyBarsHtml = storiesByYear.map((r, i) =>
+        `<div class="bar-col">
+          <div class="bar-value">${r.c}</div>
+          <div class="bar-fill " style="height:${(r.c / maxStory) * 100}%"></div>
+          <div class="bar-label">${r.year}</div>
+        </div>`
+      ).join('');
+
+      // --- Monthly heatmap ---
+      const monthlyData = query("SELECT substr(date,1,4) as yr, substr(date,6,2) as mo, COUNT(*) as c FROM posts GROUP BY yr, mo ORDER BY yr, mo");
+      const storyMonthly = query("SELECT substr(date,1,4) as yr, substr(date,6,2) as mo, COUNT(*) as c FROM stories GROUP BY yr, mo ORDER BY yr, mo");
+      // Merge posts + stories
+      const heatMap = {};
+      let heatMax = 0;
+      const allYears = new Set();
+      [...monthlyData, ...storyMonthly].forEach(r => {
+        const key = `${r.yr}-${r.mo}`;
+        heatMap[key] = (heatMap[key] || 0) + r.c;
+        if (heatMap[key] > heatMax) heatMax = heatMap[key];
+        allYears.add(r.yr);
+      });
+      const sortedYears = [...allYears].sort();
+      const months = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      function heatLevel(val) {
+        if (!val) return 0;
+        const pct = val / heatMax;
+        if (pct < 0.1) return 1;
+        if (pct < 0.25) return 2;
+        if (pct < 0.5) return 3;
+        if (pct < 0.75) return 4;
+        return 5;
+      }
+      let heatmapHtml = '<table class="heatmap-table"><tr><th></th>';
+      monthNames.forEach(m => { heatmapHtml += `<th>${m}</th>`; });
+      heatmapHtml += '</tr>';
+      sortedYears.forEach(yr => {
+        heatmapHtml += `<tr><th>${yr}</th>`;
+        months.forEach(mo => {
+          const val = heatMap[`${yr}-${mo}`] || 0;
+          const lvl = heatLevel(val);
+          heatmapHtml += `<td class="heatmap-cell-${lvl}" title="${yr}-${mo}: ${val}">${val || ''}</td>`;
+        });
+        heatmapHtml += '</tr>';
+      });
+      heatmapHtml += '</table>';
+
+      // --- Top 20 Hashtags ---
+      const hashtags = []; // skip json_each (not supported in sql.js)
+      let hashtagHtml = '';
+      if (hashtags.length > 0) {
+        const maxHash = hashtags[0].c;
+        hashtagHtml = hashtags.map((r, i) =>
+          `<div class="h-bar-row">
+            <div class="h-bar-rank">${i + 1}</div>
+            <div class="h-bar-label" title="${escapeHtml(r.tag)}">${escapeHtml(r.tag)}</div>
+            <div class="h-bar-track"><div class="h-bar-fill " style="width:${(r.c / maxHash) * 100}%"></div></div>
+            <div class="h-bar-value">${r.c}</div>
+          </div>`
+        ).join('');
+      } else {
+        // Fallback: extract hashtags with a simpler approach
+        const rawHashtags = query("SELECT caption FROM posts WHERE caption LIKE '%#%'");
+        const tagCounts = {};
+        rawHashtags.forEach(r => {
+          const matches = (r.caption || '').match(/#[\w\uAC00-\uD7A3]+/g);
+          if (matches) matches.forEach(t => {
+            const lower = t.toLowerCase();
+            tagCounts[lower] = (tagCounts[lower] || 0) + 1;
+          });
+        });
+        const sorted = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 20);
+        if (sorted.length > 0) {
+          const maxH = sorted[0][1];
+          hashtagHtml = sorted.map(([tag, c], i) =>
+            `<div class="h-bar-row">
+              <div class="h-bar-rank">${i + 1}</div>
+              <div class="h-bar-label" title="${escapeHtml(tag)}">${escapeHtml(tag)}</div>
+              <div class="h-bar-track"><div class="h-bar-fill" style="width:${(c / maxH) * 100}%"></div></div>
+              <div class="h-bar-value">${c}</div>
+            </div>`
+          ).join('');
+        } else {
+          hashtagHtml = '<div class="mac-empty" style="padding:8px;">No hashtags found</div>';
+        }
+      }
+
+      // --- Post vs Story ratio over time (stacked bar) ---
+      const allContentYears = new Set([...postsByYear.map((r, i) => r.year), ...storiesByYear.map((r, i) => r.year)]);
+      const contentYearsSorted = [...allContentYears].sort();
+      const postMap = {}; postsByYear.forEach(r => { postMap[r.year] = r.c; });
+      const storyMap = {}; storiesByYear.forEach(r => { storyMap[r.year] = r.c; });
+      const maxStacked = Math.max(...contentYearsSorted.map(y => (postMap[y] || 0) + (storyMap[y] || 0)), 1);
+      const stackedBarsHtml = contentYearsSorted.map(y => {
+        const pCount = postMap[y] || 0;
+        const sCount = storyMap[y] || 0;
+        const total = pCount + sCount;
+        const pPct = (pCount / maxStacked) * 100;
+        const sPct = (sCount / maxStacked) * 100;
+        return `<div class="stacked-bar-col">
+          <div class="bar-value" style="font-size:8px;">${total}</div>
+          <div style="width:100%;display:flex;flex-direction:column-reverse;">
+            <div class="stacked-fill-post" style="height:${pPct}%;min-height:${pCount ? 1 : 0}px;"></div>
+            <div class="stacked-fill-story" style="height:${sPct}%;min-height:${sCount ? 1 : 0}px;"></div>
+          </div>
+          <div class="bar-label">${y}</div>
+        </div>`;
+      }).join('');
+
+      // --- Media type breakdown ---
+      const mediaTypes = query("SELECT media_type, COUNT(*) as c FROM posts GROUP BY media_type ORDER BY c DESC");
+      const storyMediaTypes = query("SELECT media_type, COUNT(*) as c FROM stories GROUP BY media_type ORDER BY c DESC");
+      const allMediaMap = {};
+      mediaTypes.forEach(r => { const k = r.media_type || 'unknown'; allMediaMap[k] = (allMediaMap[k] || 0) + r.c; });
+      storyMediaTypes.forEach(r => { const k = r.media_type || 'unknown'; allMediaMap[k] = (allMediaMap[k] || 0) + r.c; });
+      const mediaEntries = Object.entries(allMediaMap).sort((a, b) => b[1] - a[1]);
+      const mediaTotal = mediaEntries.reduce((s, [, c]) => s + c, 0);
+      const patterns = ['var(--mac-black)', '#888', '#bbb', '#ddd', '#f0f0f0'];
+      let mediaHtml = '';
+      if (mediaEntries.length > 0) {
+        // Horizontal bars for media types
+        const maxMedia = mediaEntries[0][1];
+        mediaHtml = mediaEntries.map(([type, c], i) => {
+          const pct = ((c / mediaTotal) * 100).toFixed(1);
+          return `<div class="h-bar-row">
+            <div class="h-bar-label" style="width:100px;">${escapeHtml(type)}</div>
+            <div class="h-bar-track"><div class="h-bar-fill" style="width:${(c / maxMedia) * 100}%;background:${patterns[i % patterns.length]};"></div></div>
+            <div class="h-bar-value">${c} (${pct}%)</div>
+          </div>`;
+        }).join('');
+      }
+
+      el.innerHTML = `
+        <h3 style="font-size:16px;border-bottom:1px solid var(--mac-black);padding-bottom:4px;margin-bottom:12px;">Petergram Analytics</h3>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+          <div class="mac-card stat-card"><div class="mac-card-header">Total Posts</div><div class="mac-card-body"><div class="stat-value">${totalPosts ? totalPosts.c.toLocaleString() : 0}</div></div></div>
+          <div class="mac-card stat-card"><div class="mac-card-header">Total Stories</div><div class="mac-card-body"><div class="stat-value">${totalStories ? totalStories.c.toLocaleString() : 0}</div></div></div>
+          <div class="mac-card stat-card"><div class="mac-card-header">Likes Given</div><div class="mac-card-body"><div class="stat-value">${totalLikes ? totalLikes.c.toLocaleString() : 0}</div></div></div>
+          <div class="mac-card stat-card"><div class="mac-card-header">Active Period</div><div class="mac-card-body"><div class="stat-sub">${firstPost ? firstPost.date.slice(0,7) : '—'} ~ ${lastPost ? lastPost.date.slice(0,7) : '—'}</div></div></div>
+        </div>
+
+        <h4 style="font-size:14px;margin:16px 0 4px;">Posts per Year</h4>
+        <div class="bar-chart">${barsHtml}</div>
+
+        <h4 style="font-size:14px;margin:16px 0 4px;">Stories per Year</h4>
+        <div class="bar-chart">${storyBarsHtml}</div>
+
+        <h4 style="font-size:14px;margin:16px 0 4px;">Post vs Story Mix by Year</h4>
+        <div class="analysis-legend">
+          <div class="analysis-legend-item"><div class="legend-swatch" style="background:var(--mac-black);"></div> Posts</div>
+          <div class="analysis-legend-item"><div class="legend-swatch" style="background:#888;"></div> Stories</div>
+        </div>
+        <div class="stacked-bar-chart">${stackedBarsHtml}</div>
+
+        <h4 style="font-size:14px;margin:16px 0 4px;">Monthly Activity Heatmap</h4>
+        <div style="font-size:11px;color:var(--mac-dark-gray);margin-bottom:4px;">Posts + Stories combined. Darker = more active.</div>
+        ${heatmapHtml}
+
+        <h4 style="font-size:14px;margin:16px 0 4px;">Top 20 Hashtags</h4>
+        <div style="border:1px solid var(--mac-black);padding:8px;margin:12px 0;">${hashtagHtml}</div>
+
+        <h4 style="font-size:14px;margin:16px 0 4px;">Media Type Breakdown</h4>
+        <div style="border:1px solid var(--mac-black);padding:8px;margin:12px 0;">${mediaHtml || '<div class="mac-empty">No media type data</div>'}</div>
+      `;
+      } catch(e) {
+        console.error('Analysis error:', e);
+        el.innerHTML = '<div class="mac-empty">Analysis loading error: ' + e.message + '</div>';
+      }
+    }
+
+    // ===== INIT =====
+    document.addEventListener('DOMContentLoaded', async () => {
+      initTabs('#petergram-tabs');
+
+      // View toggle
+      document.querySelectorAll('#view-toggle .view-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('#view-toggle .view-toggle-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentView = btn.dataset.view;
+          loadTimeline();
+        });
+      });
+
+      // Year filter
+      document.getElementById('year-select').addEventListener('change', e => {
+        currentYear = e.target.value; currentPage = 1; loadTimeline();
+      });
+
+      // Type filter
+      document.getElementById('type-select').addEventListener('change', e => {
+        currentType = e.target.value; currentPage = 1; loadTimeline();
+      });
+
+      // Search
+      document.getElementById('search-btn').addEventListener('click', doSearch);
+      document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+      // Load DB
+      const ok = await initDB();
+      if (ok) {
+        loadProfileStats();
+        loadYearFilter();
+        loadTimeline();
+        loadAnalysis();
+      }
+    });
+  </script>
+</body>
+</html>
