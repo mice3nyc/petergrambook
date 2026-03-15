@@ -18,3 +18,9 @@ analysis/parse_facebook.py
 # Temp files
 *.pyc
 __pycache__/
+
+# Internal work documents (not part of the viewer)
+_코스모로그.md
+analysis/
+create_public_dbs.py
+start.sh
