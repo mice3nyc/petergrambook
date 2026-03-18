@@ -67,7 +67,7 @@
     .stat-sub { font-size: 12px; color: var(--mac-dark-gray); margin-top: 4px; }
     .bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 150px; padding: 8px; border: 1px solid var(--mac-black); margin: 12px 0; }
     .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
-    .bar-fill { width: 100%; background: var(--mac-black); min-height: 1px; }
+    .bar-fill { width: 100%; min-height: 1px; }
     .bar-label { font-size: 10px; margin-top: 4px; }
     .bar-value { font-size: 9px; margin-bottom: 2px; }
     .thread-list-item { padding: 8px 12px; border-bottom: 1px solid var(--mac-light-gray); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
@@ -200,7 +200,16 @@
             <span style="flex:1;"></span>
             <strong id="msg-thread-name" style="font-size:14px;"></strong>
           </div>
+          <div class="filter-bar" style="border-top:none;">
+            <label>Jump to:</label>
+            <select class="mac-select" id="msg-year-select"><option value="all">All years</option></select>
+            <select class="mac-select" id="msg-month-select"><option value="all">All months</option></select>
+            <span style="flex:1;"></span>
+            <span id="msg-detail-status" style="font-size:12px;color:var(--mac-dark-gray);"></span>
+          </div>
+          <div id="msg-detail-pagination-top"></div>
           <div id="msg-messages" style="max-height:600px;overflow-y:auto;padding:8px;"></div>
+          <div id="msg-detail-pagination"></div>
         </div>
       </div>
 
@@ -258,6 +267,7 @@
 
   <script>
     let db=null, currentPage=1, currentYear='all', msgPage=1, photoPage=1, photoCat='all';
+    let msgDetailPage=1, currentThreadId=null, currentThreadName='', msgDateFilter={year:'all',month:'all'};
 
     async function initDB() {
       try {
@@ -387,12 +397,57 @@
       document.getElementById('msg-detail').style.display = 'block';
       document.getElementById('msg-thread-name').textContent = threadName;
 
-      const msgs = query('SELECT sender, content, date FROM messages WHERE thread_id = ? ORDER BY date ASC', [threadId]);
+      currentThreadId = threadId;
+      currentThreadName = threadName;
+      msgDateFilter = {year:'all', month:'all'};
+      document.getElementById('msg-year-select').value = 'all';
+      document.getElementById('msg-month-select').innerHTML = '<option value="all">All months</option>';
+
+      // Populate date jump years
+      const years = query("SELECT DISTINCT substr(date,1,4) as yr FROM messages WHERE thread_id = ? AND date IS NOT NULL AND date != '' ORDER BY yr", [threadId]);
+      const ySel = document.getElementById('msg-year-select');
+      ySel.innerHTML = '<option value="all">All years</option>';
+      years.forEach(r => { if(r.yr) ySel.innerHTML += `<option value="${r.yr}">${r.yr}</option>`; });
+
+      // Start at last page (most recent messages)
+      const total = queryOne('SELECT COUNT(*) as c FROM messages WHERE thread_id = ?', [threadId]);
+      const tc = total ? total.c : 0;
+      msgDetailPage = Math.ceil(tc / 50) || 1;
+
+      loadThreadMessages();
+    }
+
+    function loadThreadMessages() {
+      const pp = 50;
+      let where = 'WHERE thread_id = ?';
+      let params = [currentThreadId];
+
+      if (msgDateFilter.year !== 'all') {
+        if (msgDateFilter.month !== 'all') {
+          where += " AND date LIKE ?";
+          params.push(`${msgDateFilter.year}-${msgDateFilter.month}%`);
+        } else {
+          where += " AND date LIKE ?";
+          params.push(`${msgDateFilter.year}%`);
+        }
+      }
+
+      const total = queryOne(`SELECT COUNT(*) as c FROM messages ${where}`, params);
+      const tc = total ? total.c : 0;
+      const tp = Math.ceil(tc / pp) || 1;
+      if (msgDetailPage > tp) msgDetailPage = tp;
+      const off = (msgDetailPage - 1) * pp;
+
+      document.getElementById('msg-detail-status').textContent = `${tc.toLocaleString()} messages`;
+
+      const msgs = query(`SELECT sender, content, date FROM messages ${where} ORDER BY date ASC LIMIT ${pp} OFFSET ${off}`, params);
       const el = document.getElementById('msg-messages');
       el.innerHTML = '';
 
       if (msgs.length === 0) {
         el.innerHTML = '<div class="mac-empty">이 스레드의 메시지 데이터가 없습니다.<br>(상위 20개 스레드만 파싱됨)</div>';
+        document.getElementById('msg-detail-pagination').innerHTML = '';
+        document.getElementById('msg-detail-pagination-top').innerHTML = '';
         return;
       }
 
@@ -404,7 +459,10 @@
         el.appendChild(div);
       });
 
-      el.scrollTop = el.scrollHeight;
+      const pageInfo = {page:msgDetailPage, totalPages:tp, total:tc, hasNext:msgDetailPage<tp, hasPrev:msgDetailPage>1};
+      const onPage = p => { msgDetailPage=p; loadThreadMessages(); el.scrollTo(0,0); };
+      renderPagination(document.getElementById('msg-detail-pagination-top'), pageInfo, onPage);
+      renderPagination(document.getElementById('msg-detail-pagination'), pageInfo, onPage);
     }
 
     function hideThread() {
@@ -412,6 +470,7 @@
       document.getElementById('thread-list').style.display = 'block';
       document.getElementById('msg-pagination').style.display = 'block';
       document.getElementById('msg-header').style.display = 'flex';
+      currentThreadId = null;
     }
 
     function doSearch(){
@@ -440,7 +499,7 @@
       const interests=hasTable('ad_interests')?query('SELECT interest FROM ad_interests LIMIT 50'):[];
       const offmeta=hasTable('off_meta_activity')?query('SELECT site FROM off_meta_activity ORDER BY event_count DESC LIMIT 30'):[];
       const mx=Math.max(...pby.map(r=>r.c),1);
-      const bars=pby.map((r,i)=>`<div class="bar-col"><div class="bar-value">${r.c}</div><div class="bar-fill" style="height:${(r.c/mx)*100}%"></div><div class="bar-label">'${String(r.year).slice(2)}</div></div>`).join('');
+      const bars=pby.map((r,i)=>`<div class="bar-col"><div class="bar-value">${r.c}</div><div class="bar-fill ${getDitherClass(i)}" style="height:${(r.c/mx)*100}%"></div><div class="bar-label">'${String(r.year).slice(2)}</div></div>`).join('');
       const trows=top10.map((r,i)=>`<tr><td style="padding:4px 8px;">${i+1}</td><td style="padding:4px 8px;">${escapeHtml(r.thread_name)}</td><td style="padding:4px 8px;text-align:right;font-weight:bold;">${r.message_count.toLocaleString()}</td></tr>`).join('');
 
       // --- Posting by Day of Week ---
@@ -448,11 +507,11 @@
       const dowNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
       const dowMap = {}; dowData.forEach(r => { dowMap[r.dow] = r.c; });
       const maxDow = Math.max(...Object.values(dowMap), 1);
-      const dowBars = [0,1,2,3,4,5,6].map(d => {
+      const dowBars = [0,1,2,3,4,5,6].map((d, i) => {
         const c = dowMap[d] || 0;
         return `<div class="dow-col">
           <div class="bar-value">${c}</div>
-          <div class="bar-fill" style="height:${(c / maxDow) * 100}%"></div>
+          <div class="bar-fill ${getDitherClass(i)}" style="height:${(c / maxDow) * 100}%"></div>
           <div class="bar-label" style="writing-mode:horizontal-tb;">${dowNames[d]}</div>
         </div>`;
       }).join('');
@@ -467,7 +526,7 @@
           const c = hourMap[h] || 0;
           return `<div class="bar-col">
             <div class="bar-value">${c || ''}</div>
-            <div class="bar-fill" style="height:${(c / maxHour) * 100}%"></div>
+            <div class="bar-fill ${getDitherClass(h)}" style="height:${(c / maxHour) * 100}%"></div>
             <div class="bar-label" style="writing-mode:horizontal-tb;font-size:9px;">${h}</div>
           </div>`;
         }).join('');
@@ -476,8 +535,8 @@
       // --- Friends added per year ---
       const friendsByYear = hasTable('friends') ? query("SELECT substr(date_added,1,4) as yr, COUNT(*) as c FROM friends WHERE date_added IS NOT NULL AND date_added != '' GROUP BY yr ORDER BY yr") : [];
       const maxFriend = Math.max(...friendsByYear.map(r => r.c), 1);
-      const friendBars = friendsByYear.map(r =>
-        `<div class="bar-col"><div class="bar-value">${r.c}</div><div class="bar-fill" style="height:${(r.c/maxFriend)*100}%"></div><div class="bar-label">'${String(r.yr).slice(2)}</div></div>`
+      const friendBars = friendsByYear.map((r, i) =>
+        `<div class="bar-col"><div class="bar-value">${r.c}</div><div class="bar-fill ${getDitherClass(i)}" style="height:${(r.c/maxFriend)*100}%"></div><div class="bar-label">'${String(r.yr).slice(2)}</div></div>`
       ).join('');
 
       // --- Reaction stats ---
@@ -581,6 +640,23 @@
       const ok=await initDB();
       document.getElementById('photo-cat-select').addEventListener('change',e=>{photoCat=e.target.value;photoPage=1;loadPhotos();});
       document.getElementById('msg-back-btn').addEventListener('click', hideThread);
+      document.getElementById('msg-year-select').addEventListener('change', e => {
+        msgDateFilter.year = e.target.value;
+        const mSel = document.getElementById('msg-month-select');
+        mSel.innerHTML = '<option value="all">All months</option>';
+        msgDateFilter.month = 'all';
+        if (msgDateFilter.year !== 'all' && currentThreadId) {
+          const months = query("SELECT DISTINCT substr(date,6,2) as mn FROM messages WHERE thread_id = ? AND date LIKE ? ORDER BY mn", [currentThreadId, msgDateFilter.year+'%']);
+          months.forEach(r => { if(r.mn) mSel.innerHTML += `<option value="${r.mn}">${r.mn}</option>`; });
+        }
+        msgDetailPage = 1;
+        if (currentThreadId) loadThreadMessages();
+      });
+      document.getElementById('msg-month-select').addEventListener('change', e => {
+        msgDateFilter.month = e.target.value;
+        msgDetailPage = 1;
+        if (currentThreadId) loadThreadMessages();
+      });
       if(ok){
         loadProfile();loadYearFilter();loadTimeline();loadPhotos();
         // Hide Messages tab if no messages table (public DB)
