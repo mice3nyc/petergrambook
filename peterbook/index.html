@@ -205,6 +205,10 @@
             <select class="mac-select" id="msg-year-select"><option value="all">All years</option></select>
             <select class="mac-select" id="msg-month-select"><option value="all">All months</option></select>
             <span style="flex:1;"></span>
+            <div style="display:flex;align-items:center;gap:2px;position:relative;">
+              <input type="text" class="mac-input" id="msg-search-input" placeholder="Search in thread..." style="width:160px;font-size:12px;padding:2px 20px 2px 4px;">
+              <button class="mac-button" id="msg-search-clear" style="position:absolute;right:0;top:0;bottom:0;border:none;background:transparent;cursor:pointer;font-size:14px;padding:0 4px;display:none;" title="Clear search">&times;</button>
+            </div>
             <span id="msg-detail-status" style="font-size:12px;color:var(--mac-dark-gray);"></span>
           </div>
           <div id="msg-detail-pagination-top"></div>
@@ -268,6 +272,7 @@
   <script>
     let db=null, currentPage=1, currentYear='all', msgPage=1, photoPage=1, photoCat='all';
     let msgDetailPage=1, currentThreadId=null, currentThreadName='', msgDateFilter={year:'all',month:'all'};
+    let msgSearchQuery = '';
 
     async function initDB() {
       try {
@@ -400,8 +405,11 @@
       currentThreadId = threadId;
       currentThreadName = threadName;
       msgDateFilter = {year:'all', month:'all'};
+      msgSearchQuery = '';
       document.getElementById('msg-year-select').value = 'all';
       document.getElementById('msg-month-select').innerHTML = '<option value="all">All months</option>';
+      document.getElementById('msg-search-input').value = '';
+      document.getElementById('msg-search-clear').style.display = 'none';
 
       // Populate date jump years
       const years = query("SELECT DISTINCT substr(date,1,4) as yr FROM messages WHERE thread_id = ? AND date IS NOT NULL AND date != '' ORDER BY yr", [threadId]);
@@ -430,6 +438,11 @@
           where += " AND date LIKE ?";
           params.push(`${msgDateFilter.year}%`);
         }
+      }
+
+      if (msgSearchQuery) {
+        where += " AND content LIKE ?";
+        params.push(`%${msgSearchQuery}%`);
       }
 
       const total = queryOne(`SELECT COUNT(*) as c FROM messages ${where}`, params);
@@ -640,6 +653,24 @@
       const ok=await initDB();
       document.getElementById('photo-cat-select').addEventListener('change',e=>{photoCat=e.target.value;photoPage=1;loadPhotos();});
       document.getElementById('msg-back-btn').addEventListener('click', hideThread);
+      // Thread search
+      const msgSearchInput = document.getElementById('msg-search-input');
+      const msgSearchClear = document.getElementById('msg-search-clear');
+      function doMsgSearch() {
+        const q = msgSearchInput.value.trim();
+        msgSearchQuery = q;
+        msgSearchClear.style.display = q ? 'block' : 'none';
+        msgDetailPage = 1;
+        if (currentThreadId) loadThreadMessages();
+      }
+      msgSearchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doMsgSearch(); });
+      msgSearchClear.addEventListener('click', () => {
+        msgSearchInput.value = '';
+        msgSearchQuery = '';
+        msgSearchClear.style.display = 'none';
+        msgDetailPage = 1;
+        if (currentThreadId) loadThreadMessages();
+      });
       document.getElementById('msg-year-select').addEventListener('change', e => {
         msgDateFilter.year = e.target.value;
         const mSel = document.getElementById('msg-month-select');
